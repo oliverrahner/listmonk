@@ -284,6 +284,7 @@
     "lists.confirmDelete": "Are you sure? This does not delete subscribers.",
     "lists.confirmSub": "Confirm subscription(s) to {name}",
     "lists.incomingEmail": "Incoming email address",
+    "lists.incomingEmailExists": "The incoming email address '{email}' is already assigned to list '{listName}' (ID: {listID}). Please use a different email address or remove it from the other list first.",
     "lists.incomingEmailHelp": "Email address to receive incoming messages that will be forwarded to list subscribers. Must be unique across all lists.",
     "lists.incomingEmailPlaceholder": "newsletter@example.com",
     "lists.invalidName": "Invalid name",

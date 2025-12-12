@@ -157,6 +157,10 @@ export default Vue.extend({
 
   methods: {
     addMailbox() {
+      // Initialize the array if it doesn't exist
+      if (!this.data['incoming.mailboxes']) {
+        this.$set(this.data, 'incoming.mailboxes', []);
+      }
       this.data['incoming.mailboxes'].push({
         enabled: true,
         uuid: '',
