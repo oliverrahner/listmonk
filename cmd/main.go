@@ -22,6 +22,7 @@ import (
 	"github.com/knadh/listmonk/internal/core"
 	"github.com/knadh/listmonk/internal/events"
 	"github.com/knadh/listmonk/internal/i18n"
+	"github.com/knadh/listmonk/internal/incoming"
 	"github.com/knadh/listmonk/internal/manager"
 	"github.com/knadh/listmonk/internal/media"
 	"github.com/knadh/listmonk/internal/messenger/email"
@@ -46,6 +47,7 @@ type App struct {
 	auth       *auth.Auth
 	media      media.Store
 	bounce     *bounce.Manager
+	incoming   *incoming.Manager
 	captcha    *captcha.Captcha
 	i18n       *i18n.I18n
 	pg         *paginator.Paginator
@@ -240,6 +242,13 @@ func main() {
 		go bounce.Run()
 	}
 
+	// Initialize the incoming mail manager that processes incoming emails and forwards them to list subscribers.
+	var incomingMgr *incoming.Manager
+	if ko.Bool("incoming.enabled") {
+		incomingMgr = initIncomingManager(db, mgr, lo, ko)
+		go incomingMgr.Run()
+	}
+
 	// Start cronjobs.
 	initCron(core, db)
 
@@ -263,6 +272,7 @@ func main() {
 		auth:       auth,
 		media:      media,
 		bounce:     bounce,
+		incoming:   incomingMgr,
 		captcha:    initCaptcha(),
 		i18n:       i18n,
 		log:        lo,
