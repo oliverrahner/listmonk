@@ -49,6 +49,12 @@
             :placeholder="$t('globals.terms.tags')" />
         </b-field>
 
+        <b-field :label="$t('lists.incomingEmail')" label-position="on-border"
+          :message="$t('lists.incomingEmailHelp')">
+          <b-input v-model="form.incoming_email" name="incoming_email" type="email"
+            :placeholder="$t('lists.incomingEmailPlaceholder')" :maxlength="200" />
+        </b-field>
+
         <b-field :label="$t('globals.fields.description')" label-position="on-border">
           <b-input :maxlength="2000" v-model="form.description" name="description" type="textarea"
             :placeholder="$t('globals.fields.description')" />
@@ -97,6 +103,7 @@ export default Vue.extend({
         optin: 'single',
         status: 'active',
         tags: [],
+        incoming_email: null,
       },
     };
   },
