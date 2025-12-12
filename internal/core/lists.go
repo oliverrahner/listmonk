@@ -2,6 +2,8 @@ package core
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/knadh/listmonk/models"
@@ -167,8 +169,24 @@ func (c *Core) CreateList(l models.List) (models.List, error) {
 	// Insert and read ID.
 	var newID int
 	l.UUID = uu.String()
-	if err := c.q.CreateList.Get(&newID, l.UUID, l.Name, l.Type, l.Optin, l.Status, pq.StringArray(normalizeTags(l.Tags)), l.Description); err != nil {
+	if err := c.q.CreateList.Get(&newID, l.UUID, l.Name, l.Type, l.Optin, l.Status, pq.StringArray(normalizeTags(l.Tags)), l.Description, l.IncomingEmail); err != nil {
 		c.log.Printf("error creating list: %v", err)
+		
+		// Check if this is a unique constraint violation on incoming_email
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" && strings.Contains(pqErr.Constraint, "incoming_email") {
+			// Get the existing list with this email
+			if l.IncomingEmail.Valid && l.IncomingEmail.String != "" {
+				var existing struct {
+					ID   int    `db:"id"`
+					Name string `db:"name"`
+				}
+				if err := c.db.Get(&existing, "SELECT id, name FROM lists WHERE incoming_email = $1", l.IncomingEmail.String); err == nil {
+					return models.List{}, echo.NewHTTPError(http.StatusBadRequest,
+						c.i18n.Ts("lists.incomingEmailExists", "email", l.IncomingEmail.String, "listName", existing.Name, "listID", strconv.Itoa(existing.ID)))
+				}
+			}
+		}
+		
 		return models.List{}, echo.NewHTTPError(http.StatusInternalServerError,
 			c.i18n.Ts("globals.messages.errorCreating", "name", "{globals.terms.list}", "error", pqErrMsg(err)))
 	}
@@ -178,9 +196,25 @@ func (c *Core) CreateList(l models.List) (models.List, error) {
 
 // UpdateList updates a given list.
 func (c *Core) UpdateList(id int, l models.List) (models.List, error) {
-	res, err := c.q.UpdateList.Exec(id, l.Name, l.Type, l.Optin, l.Status, pq.StringArray(normalizeTags(l.Tags)), l.Description)
+	res, err := c.q.UpdateList.Exec(id, l.Name, l.Type, l.Optin, l.Status, pq.StringArray(normalizeTags(l.Tags)), l.Description, l.IncomingEmail)
 	if err != nil {
 		c.log.Printf("error updating list: %v", err)
+		
+		// Check if this is a unique constraint violation on incoming_email
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" && strings.Contains(pqErr.Constraint, "incoming_email") {
+			// Get the existing list with this email
+			if l.IncomingEmail.Valid && l.IncomingEmail.String != "" {
+				var existing struct {
+					ID   int    `db:"id"`
+					Name string `db:"name"`
+				}
+				if err := c.db.Get(&existing, "SELECT id, name FROM lists WHERE incoming_email = $1", l.IncomingEmail.String); err == nil {
+					return models.List{}, echo.NewHTTPError(http.StatusBadRequest,
+						c.i18n.Ts("lists.incomingEmailExists", "email", l.IncomingEmail.String, "listName", existing.Name, "listID", strconv.Itoa(existing.ID)))
+				}
+			}
+		}
+		
 		return models.List{}, echo.NewHTTPError(http.StatusInternalServerError,
 			c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.list}", "error", pqErrMsg(err)))
 	}

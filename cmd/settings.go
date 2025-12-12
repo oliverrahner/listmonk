@@ -16,6 +16,7 @@ import (
 	"github.com/gdgvda/cron"
 	"github.com/gofrs/uuid/v5"
 	"github.com/jmoiron/sqlx/types"
+	pop3 "github.com/knadh/go-pop3"
 	koanfjson "github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/providers/rawbytes"
 	"github.com/knadh/koanf/v2"
@@ -398,6 +399,83 @@ func (a *App) TestSMTPSettings(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, okResp{a.bufLog.Lines()})
+}
+
+// TestIncomingMailboxSettings tests POP3 connection settings.
+func (a *App) TestIncomingMailboxSettings(c echo.Context) error {
+	// Copy the raw JSON post body.
+	reqBody, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		a.log.Printf("error reading incoming mailbox test: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.internalError"))
+	}
+
+	// Load the JSON into koanf to parse incoming mailbox settings properly.
+	ko := koanf.New(".")
+	if err := ko.Load(rawbytes.Provider(reqBody), koanfjson.Parser()); err != nil {
+		a.log.Printf("error unmarshalling incoming mailbox test request: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.internalError"))
+	}
+
+	var req struct {
+		Type          string `json:"type"`
+		Host          string `json:"host"`
+		Port          int    `json:"port"`
+		AuthProtocol  string `json:"auth_protocol"`
+		Username      string `json:"username"`
+		Password      string `json:"password"`
+		TLSEnabled    bool   `json:"tls_enabled"`
+		TLSSkipVerify bool   `json:"tls_skip_verify"`
+	}
+	if err := ko.UnmarshalWithConf("", &req, koanf.UnmarshalConf{Tag: "json"}); err != nil {
+		a.log.Printf("error scanning incoming mailbox test request: %v", err)
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.internalError"))
+	}
+
+	// Validate required fields.
+	if req.Host == "" || req.Port == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.missingFields", "name", "host, port"))
+	}
+
+	// Test the POP3 connection.
+	if req.Type != "pop" {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidData"))
+	}
+
+	// Import the POP3 client.
+	client := pop3.New(pop3.Opt{
+		Host:          req.Host,
+		Port:          req.Port,
+		TLSEnabled:    req.TLSEnabled,
+		TLSSkipVerify: req.TLSSkipVerify,
+	})
+
+	conn, err := client.NewConn()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.errorCreating", "name", "POP3", "error", err.Error()))
+	}
+	defer conn.Quit()
+
+	// Authenticate if required.
+	if req.AuthProtocol != "none" {
+		if err := conn.Auth(req.Username, req.Password); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError,
+				a.i18n.Ts("globals.messages.errorCreating", "name", "POP3 Auth", "error", err.Error()))
+		}
+	}
+
+	// Get message count to verify connection.
+	count, _, err := conn.Stat()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError,
+			a.i18n.Ts("globals.messages.errorCreating", "name", "POP3 Stat", "error", err.Error()))
+	}
+
+	return c.JSON(http.StatusOK, okResp{map[string]interface{}{
+		"message": a.i18n.T("settings.incoming.testSuccess"),
+		"count":   count,
+	}})
 }
 
 func (a *App) GetAboutInfo(c echo.Context) error {

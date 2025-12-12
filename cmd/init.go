@@ -39,6 +39,7 @@ import (
 	"github.com/knadh/listmonk/internal/captcha"
 	"github.com/knadh/listmonk/internal/core"
 	"github.com/knadh/listmonk/internal/i18n"
+	"github.com/knadh/listmonk/internal/incoming"
 	"github.com/knadh/listmonk/internal/manager"
 	"github.com/knadh/listmonk/internal/media"
 	"github.com/knadh/listmonk/internal/media/providers/filesystem"
@@ -833,6 +834,102 @@ func initBounceManager(cb func(models.Bounce) error, stmt *sqlx.Stmt, lo *log.Lo
 	}
 
 	return b
+}
+
+// initIncomingManager initializes the incoming mail manager that scans mailboxes for incoming emails
+// and forwards them to list subscribers.
+func initIncomingManager(db *sqlx.DB, mgr *manager.Manager, lo *log.Logger, ko *koanf.Koanf) *incoming.Manager {
+	if !ko.Bool("incoming.enabled") {
+		return nil
+	}
+
+	var mailboxes []incoming.MailboxOpt
+	for _, b := range ko.Slices("incoming.mailboxes") {
+		if !b.Bool("enabled") {
+			continue
+		}
+
+		var boxOpt incoming.MailboxOpt
+		if err := b.UnmarshalWithConf("", &boxOpt, koanf.UnmarshalConf{Tag: "json"}); err != nil {
+			lo.Fatalf("error reading incoming mailbox config: %v", err)
+		}
+		mailboxes = append(mailboxes, boxOpt)
+	}
+
+	opt := incoming.Opt{
+		Enabled:   true,
+		Mailboxes: mailboxes,
+	}
+
+	// Forward callback function that sends emails to list subscribers.
+	forwardCB := func(mail incoming.IncomingMail) error {
+		return forwardIncomingEmail(mail, db, mgr, lo)
+	}
+
+	// Initialize the incoming mail manager.
+	m, err := incoming.New(opt, db, forwardCB, lo)
+	if err != nil {
+		lo.Fatalf("error initializing incoming mail manager: %v", err)
+	}
+
+	return m
+}
+
+// forwardIncomingEmail forwards an incoming email to all subscribers of a list.
+func forwardIncomingEmail(mail incoming.IncomingMail, db *sqlx.DB, mgr *manager.Manager, lo *log.Logger) error {
+	// Get list details and subscribers.
+	var list models.List
+	if err := db.Get(&list, "SELECT * FROM lists WHERE id = $1 AND status = 'active'", mail.ListID); err != nil {
+		return fmt.Errorf("error getting list: %w", err)
+	}
+
+	// Get all confirmed subscribers of the list.
+	var subscribers []models.Subscriber
+	query := `
+		SELECT s.* FROM subscribers s
+		INNER JOIN subscriber_lists sl ON s.id = sl.subscriber_id
+		WHERE sl.list_id = $1 
+		  AND sl.status = 'confirmed'
+		  AND s.status = 'enabled'
+	`
+	if err := db.Select(&subscribers, query, mail.ListID); err != nil {
+		return fmt.Errorf("error getting subscribers: %w", err)
+	}
+
+	if len(subscribers) == 0 {
+		lo.Printf("no subscribers for list %d to forward email to", mail.ListID)
+		return nil
+	}
+
+	// Create a message for each subscriber using the original email.
+	// Use the original sender's address as the FROM address so replies go back to them.
+	body := mail.HTMLBody
+	contentType := models.CampaignContentTypeHTML
+	if body == "" {
+		body = mail.Body
+		contentType = models.CampaignContentTypePlain
+	}
+
+	for _, sub := range subscribers {
+		msg := models.Message{
+			From:        mail.From, // Use original sender's address
+			To:          []string{sub.Email},
+			Subject:     mail.Subject,
+			ContentType: contentType,
+			Body:        []byte(body),
+			Subscriber:  sub,
+			Campaign:    nil, // Not a campaign
+		}
+
+		// Send the message using the manager.
+		if err := mgr.PushMessage(msg); err != nil {
+			lo.Printf("error forwarding email to %s: %v", sub.Email, err)
+			continue
+		}
+	}
+
+	lo.Printf("forwarded incoming email from %s to %d subscribers of list %d", mail.From, len(subscribers), mail.ListID)
+	return nil
 }
 
 // initAbout initializes the app's /about API endpoint with the app and system info.

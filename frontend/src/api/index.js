@@ -443,6 +443,12 @@ export const testSMTP = async (data) => http.post(
   { loading: models.settings, disableToast: true },
 );
 
+export const testIncomingMailbox = async (data) => http.post(
+  '/api/settings/incoming/test',
+  data,
+  { loading: models.settings, disableToast: true },
+);
+
 export const getLogs = async () => http.get(
   '/api/logs',
   { loading: models.logs, camelCase: false },

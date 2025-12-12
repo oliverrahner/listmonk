@@ -143,6 +143,21 @@ type Settings struct {
 		ScanInterval  string `json:"scan_interval"`
 	} `json:"bounce.mailboxes"`
 
+	IncomingEnabled bool `json:"incoming.enabled"`
+	IncomingMailboxes []struct {
+		UUID          string `json:"uuid"`
+		Enabled       bool   `json:"enabled"`
+		Type          string `json:"type"`
+		Host          string `json:"host"`
+		Port          int    `json:"port"`
+		AuthProtocol  string `json:"auth_protocol"`
+		Username      string `json:"username"`
+		Password      string `json:"password,omitempty"`
+		TLSEnabled    bool   `json:"tls_enabled"`
+		TLSSkipVerify bool   `json:"tls_skip_verify"`
+		ScanInterval  string `json:"scan_interval"`
+	} `json:"incoming.mailboxes"`
+
 	MaintenanceDB struct {
 		Vacuum         bool   `json:"vacuum"`
 		VacuumInterval string `json:"vacuum_cron_interval"`

@@ -49,6 +49,12 @@
             :placeholder="$t('globals.terms.tags')" />
         </b-field>
 
+        <b-field :label="$t('lists.incomingEmail')" label-position="on-border"
+          :message="$t('lists.incomingEmailHelp')">
+          <b-input v-model="form.incoming_email" name="incoming_email" type="email"
+            :placeholder="$t('lists.incomingEmailPlaceholder')" :maxlength="200" />
+        </b-field>
+
         <b-field :label="$t('globals.fields.description')" label-position="on-border">
           <b-input :maxlength="2000" v-model="form.description" name="description" type="textarea"
             :placeholder="$t('globals.fields.description')" />
@@ -97,6 +103,7 @@ export default Vue.extend({
         optin: 'single',
         status: 'active',
         tags: [],
+        incoming_email: null,
       },
     };
   },
@@ -116,6 +123,26 @@ export default Vue.extend({
         this.$emit('finished');
         this.$parent.close();
         this.$utils.toast(this.$t('globals.messages.created', { name: data.name }));
+      }).catch((err) => {
+        // Check if this is a duplicate incoming email error
+        if (err.response?.data?.message) {
+          const msg = err.response.data.message;
+          // Extract list ID from the error message if it contains one
+          const match = msg.match(/\(ID:\s*(\d+)\)/);
+          if (match) {
+            const listID = match[1];
+            // Show a custom error with a clickable link
+            this.$buefy.dialog.alert({
+              title: this.$t('globals.terms.error'),
+              message: msg.replace(/\(ID:\s*\d+\)/, `<a href="#/lists/${listID}" target="_blank">(ID: ${listID})</a>`),
+              type: 'is-danger',
+              hasIcon: true,
+            });
+            return;
+          }
+        }
+        // For other errors, let the default handler show the toast
+        throw err;
       });
     },
 
@@ -124,6 +151,26 @@ export default Vue.extend({
         this.$emit('finished');
         this.$parent.close();
         this.$utils.toast(this.$t('globals.messages.updated', { name: data.name }));
+      }).catch((err) => {
+        // Check if this is a duplicate incoming email error
+        if (err.response?.data?.message) {
+          const msg = err.response.data.message;
+          // Extract list ID from the error message if it contains one
+          const match = msg.match(/\(ID:\s*(\d+)\)/);
+          if (match) {
+            const listID = match[1];
+            // Show a custom error with a clickable link
+            this.$buefy.dialog.alert({
+              title: this.$t('globals.terms.error'),
+              message: msg.replace(/\(ID:\s*\d+\)/, `<a href="#/lists/${listID}" target="_blank">(ID: ${listID})</a>`),
+              type: 'is-danger',
+              hasIcon: true,
+            });
+            return;
+          }
+        }
+        // For other errors, let the default handler show the toast
+        throw err;
       });
     },
   },

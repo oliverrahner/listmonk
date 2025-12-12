@@ -50,6 +50,10 @@
             <bounce-settings :form="form" :key="key" />
           </b-tab-item><!-- bounces -->
 
+          <b-tab-item :label="$t('settings.incoming.name')">
+            <incoming-settings :form="form" :key="key" />
+          </b-tab-item><!-- incoming -->
+
           <b-tab-item :label="$t('settings.messengers.name')">
             <messenger-settings :form="form" :key="key" />
           </b-tab-item><!-- messengers -->
@@ -69,6 +73,7 @@ import { mapState } from 'vuex';
 import AppearanceSettings from './settings/appearance.vue';
 import BounceSettings from './settings/bounces.vue';
 import GeneralSettings from './settings/general.vue';
+import IncomingSettings from './settings/incoming.vue';
 import MediaSettings from './settings/media.vue';
 import MessengerSettings from './settings/messengers.vue';
 import PerformanceSettings from './settings/performance.vue';
@@ -85,6 +90,7 @@ export default Vue.extend({
     MediaSettings,
     SmtpSettings,
     BounceSettings,
+    IncomingSettings,
     MessengerSettings,
     AppearanceSettings,
   },

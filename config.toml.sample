@@ -22,3 +22,23 @@ max_lifetime = "300s"
 
 # Optional space separated Postgres DSN params. eg: "application_name=listmonk gssencmode=disable"
 params = ""
+
+# Incoming mail processing (optional).
+# Allows receiving emails and forwarding them to list subscribers.
+# [incoming]
+# enabled = false
+
+# Configure POP3 mailboxes to scan for incoming emails.
+# [[incoming.mailboxes]]
+# enabled = false
+# uuid = "unique-mailbox-id"
+# type = "pop"
+# host = "mail.example.com"
+# port = 995
+# auth_protocol = "plain"  # Options: plain, none
+# username = "lists@example.com"
+# password = "password"
+# tls_enabled = true
+# tls_skip_verify = false
+# scan_interval = "5m"  # How often to check for new emails (e.g., "5m", "1m", "30s")
+
