@@ -45,6 +45,7 @@ CREATE TABLE lists (
     status          list_status NOT NULL DEFAULT 'active',
     tags            VARCHAR(100)[],
     description     TEXT NOT NULL DEFAULT '',
+    incoming_email  TEXT NULL,
 
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -55,6 +56,7 @@ DROP INDEX IF EXISTS idx_lists_status; CREATE INDEX idx_lists_status ON lists(st
 DROP INDEX IF EXISTS idx_lists_name; CREATE INDEX idx_lists_name ON lists(name);
 DROP INDEX IF EXISTS idx_lists_created_at; CREATE INDEX idx_lists_created_at ON lists(created_at);
 DROP INDEX IF EXISTS idx_lists_updated_at; CREATE INDEX idx_lists_updated_at ON lists(updated_at);
+DROP INDEX IF EXISTS idx_lists_incoming_email; CREATE UNIQUE INDEX idx_lists_incoming_email ON lists(incoming_email) WHERE incoming_email IS NOT NULL;
 
 
 DROP TABLE IF EXISTS subscriber_lists CASCADE;
