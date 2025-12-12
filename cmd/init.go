@@ -916,7 +916,7 @@ func forwardIncomingEmail(mail incoming.IncomingMail, db *sqlx.DB, mgr *manager.
 			To:          []string{sub.Email},
 			Subject:     mail.Subject,
 			ContentType: contentType,
-			Body:        body,
+			Body:        []byte(body),
 			Subscriber:  sub,
 			Campaign:    nil, // Not a campaign
 		}

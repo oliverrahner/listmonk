@@ -8,12 +8,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset"
 	"github.com/emersion/go-message/mail"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/go-pop3"
-	"github.com/knadh/listmonk/models"
 )
 
 // Opt represents incoming mail processing options.
@@ -230,14 +228,8 @@ func (m *Manager) getListEmails() (map[string]int, error) {
 
 // parseMessage parses an email message and extracts relevant information.
 func (m *Manager) parseMessage(b []byte, listEmails map[string]int) (*IncomingMail, error) {
-	// Parse the message.
-	msg, err := message.Read(bytes.NewReader(b))
-	if err != nil {
-		return nil, fmt.Errorf("error reading message: %w", err)
-	}
-
-	// Create a mail reader.
-	mr, err := mail.CreateReader(msg)
+	// Create a mail reader directly from bytes.
+	mr, err := mail.CreateReader(bytes.NewReader(b))
 	if err != nil {
 		return nil, fmt.Errorf("error creating mail reader: %w", err)
 	}
